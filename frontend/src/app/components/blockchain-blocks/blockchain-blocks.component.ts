@@ -5,6 +5,7 @@ import { specialBlocks } from '../../app.constants';
 import { BlockExtended } from '../../interfaces/node-api.interface';
 import { Location } from '@angular/common';
 import { CacheService } from '../../services/cache.service';
+import { ApiService } from '../../services/api.service';
 
 interface BlockchainBlock extends BlockExtended {
   placeholder?: boolean;
@@ -77,6 +78,7 @@ export class BlockchainBlocksComponent implements OnInit, OnChanges, OnDestroy {
   constructor(
     public stateService: StateService,
     public cacheService: CacheService,
+    public apiService: ApiService,
     private cd: ChangeDetectorRef,
     private location: Location,
   ) {
@@ -332,6 +334,20 @@ export class BlockchainBlocksComponent implements OnInit, OnChanges, OnDestroy {
 
   isSpecial(height: number): boolean {
     return this.specialBlocks[height]?.networks.includes(this.stateService.network || 'mainnet') ? true : false;
+  }
+
+  isDA(height: number): boolean {
+    const isDA = height % 2016 === 0 && this.stateService.network === '';
+    if (isDA && !this.cacheService.daCache[height]) {
+      this.cacheService.daCache[height] = 1;
+      this.apiService.getDifficultyAdjustmentByHeight$(height).pipe(
+        filter((da) => !!da),
+        tap((da) => {
+          this.cacheService.daCache[height] = da.adjustment;
+        })
+      ).subscribe();
+    }
+    return isDA;
   }
 
   getStyleForBlock(block: BlockchainBlock, index: number, animateEnterFrom: number = 0) {
